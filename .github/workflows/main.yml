@@ -1,36 +1,41 @@
-name: Build EasyEject Windows
+name: EasyEject x64 Build
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Download source code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install .NET 9
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      - name: Build EasyEject
-        run: dotnet build ./src/EasyEject.UI/EasyEject.UI.csproj -c Release
+      - name: Publish x64
+        shell: pwsh
+        run: |
+          dotnet publish ./src/EasyEject.UI/EasyEject.UI.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -p:Platform=x64 `
+            -o ./publish
 
-      - name: Run tests
-        run: dotnet test ./src/EasyEject.Tests/EasyEject.Tests.csproj -c Release
+      - name: Create ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ./publish/* `
+            -DestinationPath ./EasyEject-x64.zip
 
-      - name: Publish Windows application
-        run: dotnet publish ./src/EasyEject.UI/EasyEject.UI.csproj -c Release -r win-x64
-
-      - name: Upload Windows application
+      - name: Upload x64 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EasyEject-Windows-x64
-          path: src/EasyEject.UI/bin/Release/
-          if-no-files-found: error
+          name: EasyEject-x64
+          path: EasyEject-x64.zip
+          compression-level: 9
           retention-days: 14
