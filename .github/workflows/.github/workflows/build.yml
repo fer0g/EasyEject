@@ -1,0 +1,32 @@
+name: Build EasyEject
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build
+        run: dotnet build ./src/EasyEject.UI/EasyEject.UI.csproj -c Release
+
+      - name: Test
+        run: dotnet test ./src/EasyEject.Tests/EasyEject.Tests.csproj -c Release
+
+      - name: Publish
+        run: dotnet publish ./src/EasyEject.UI/EasyEject.UI.csproj -c Release -r win-x64 --self-contained true
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyEject-Windows-x64
+          path: src/EasyEject.UI/bin/Release/**/win-x64/publish/
