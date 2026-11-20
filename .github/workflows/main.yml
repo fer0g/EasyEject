@@ -1,0 +1,14 @@
+name: Build EasyEject
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test build runner
+        run: echo "GitHub Actions is working!"
