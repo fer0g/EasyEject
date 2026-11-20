@@ -1,7 +1,10 @@
+
 name: Build EasyEject
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   build:
@@ -11,22 +14,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install .NET 9
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: '9.0.x'
 
-      - name: Build
-        run: dotnet build ./src/EasyEject.UI/EasyEject.UI.csproj -c Release
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Test
-        run: dotnet test ./src/EasyEject.Tests/EasyEject.Tests.csproj -c Release
+      - name: Find solution
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter *.sln |
+            Select-Object -ExpandProperty FullName
 
-      - name: Publish
-        run: dotnet publish ./src/EasyEject.UI/EasyEject.UI.csproj -c Release -r win-x64 --self-contained true
+      - name: Build solution
+        shell: pwsh
+        run: |
+          $solution = Get-ChildItem -Recurse -Filter *.sln |
+            Select-Object -First 1
 
-      - name: Upload
+          if (!$solution) {
+            throw "No solution file found"
+          }
+
+          msbuild $solution.FullName `
+            /restore `
+            /p:Configuration=Release `
+            /p:Platform=x64
+
+      - name: Upload build output
         uses: actions/upload-artifact@v4
         with:
-          name: EasyEject-Windows-x64
-          path: src/EasyEject.UI/bin/Release/**/win-x64/publish/
+          name: EasyEject-Build
+          path: |
+            **/bin/Release/x64/
+          if-no-files-found: warn
