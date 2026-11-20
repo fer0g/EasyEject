@@ -1,7 +1,9 @@
-name: EasyEject x64 Build
+name: EasyEject x64 Installers
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   build:
@@ -11,31 +13,61 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Install .NET 9
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      - name: Publish x64
+      - name: Run tests
+        run: dotnet test ./src/EasyEject.Tests/EasyEject.Tests.csproj -c Release
+
+      - name: Publish x64 application
         shell: pwsh
         run: |
           dotnet publish ./src/EasyEject.UI/EasyEject.UI.csproj `
             -c Release `
-            -r win-x64 `
-            --self-contained false `
-            -p:Platform=x64 `
-            -o ./publish
+            -r win-x64
 
-      - name: Create ZIP
+          $p = "src/EasyEject.UI/bin/Release/net9.0-windows10.0.19041.0/win-x64/publish"
+
+          if (!(Test-Path "$p/EasyEject.exe")) {
+            throw "Published EasyEject.exe not found"
+          }
+
+          "PUBLISH_DIR=$((Resolve-Path $p).Path)" |
+            Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build EXE installer
         shell: pwsh
         run: |
-          Compress-Archive -Path ./publish/* `
-            -DestinationPath ./EasyEject-x64.zip
+          New-Item -ItemType Directory -Force artifacts | Out-Null
 
-      - name: Upload x64 artifact
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DPublishDir=$env:PUBLISH_DIR" `
+            installer/EasyEject.iss
+
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 6.0.2
+          "$env:USERPROFILE\.dotnet\tools" |
+            Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Build MSI installer
+        shell: pwsh
+        run: |
+          wix build installer/Product.wxs `
+            -arch x64 `
+            "-dPublishDir=$env:PUBLISH_DIR" `
+            -o artifacts/EasyEject-x64.msi
+
+      - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
-          name: EasyEject-x64
-          path: EasyEject-x64.zip
-          compression-level: 9
+          name: EasyEject-x64-Installers
+          path: artifacts/*
+          if-no-files-found: error
           retention-days: 14
