@@ -61,7 +61,7 @@ jobs:
         run: |
           wix build installer/Product.wxs `
             -arch x64 `
-            "-dPublishDir=$env:PUBLISH_DIR" `
+            -d "PublishDir=$env:PUBLISH_DIR" `
             -o artifacts/EasyEject-x64.msi
 
       - name: Upload installers
