@@ -1,14 +1,36 @@
-name: Build EasyEject
+name: Build EasyEject Windows
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
-  test:
+  build:
     runs-on: windows-latest
+
     steps:
-      - name: Checkout repository
+      - name: Download source code
         uses: actions/checkout@v4
 
-      - name: Test build runner
-        run: echo "GitHub Actions is working!"
+      - name: Install .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build EasyEject
+        run: dotnet build ./src/EasyEject.UI/EasyEject.UI.csproj -c Release
+
+      - name: Run tests
+        run: dotnet test ./src/EasyEject.Tests/EasyEject.Tests.csproj -c Release
+
+      - name: Publish Windows application
+        run: dotnet publish ./src/EasyEject.UI/EasyEject.UI.csproj -c Release -r win-x64
+
+      - name: Upload Windows application
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyEject-Windows-x64
+          path: src/EasyEject.UI/bin/Release/
+          if-no-files-found: error
+          retention-days: 14
